@@ -1,0 +1,73 @@
+name: CI
+
+# Runs on every push. No GPU, no dataset, no model downloads: the stub backbone
+# and the procedural dataset make the whole pipeline testable in about a minute,
+# which is the only reason a green badge on this repo means anything.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install (CPU torch only - the CUDA wheel is 2GB and unnecessary here)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pillow scikit-learn pandas matplotlib tqdm tabulate pytest
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: End-to-end smoke pipeline
+        run: |
+          python scripts/make_synthetic_dataset.py --out data/synthetic --n 30 --size 96
+          python scripts/build_manifest.py --root data/synthetic --out data/m.csv --test_frac 0.3
+          python scripts/extract_features.py --manifest data/m.csv --split train \
+            --out features/clean.npz --backbone dummy
+          python scripts/extract_features.py --manifest data/m.csv --split train \
+            --out features/aug.npz --backbone dummy --augment --n_views 3
+          python scripts/train_head.py --features features/clean.npz --out checkpoints/c.pt --epochs 20
+          python scripts/train_head.py --features features/aug.npz --out checkpoints/r.pt --epochs 20
+          python scripts/evaluate_robustness.py --manifest data/m.csv --split test \
+            --checkpoints clean=checkpoints/c.pt robust=checkpoints/r.pt \
+            --out results_ci/ --backbone dummy
+          python predict.py --image_dir data/synthetic/real --output results_ci/pred.json \
+            --checkpoint checkpoints/r.pt --backbone dummy --quiet
+
+      - name: Verify the predict.py output contract
+        run: |
+          python - <<'PY'
+          import json
+          recs = json.load(open("results_ci/pred.json"))
+          assert isinstance(recs, list) and recs, "predictions.json must be a non-empty array"
+          for r in recs:
+              assert {"image_path", "pred"} <= set(r), f"missing required keys in {r}"
+              assert isinstance(r["pred"], (int, float)) and 0.0 <= r["pred"] <= 1.0, r
+          paths = [r["image_path"] for r in recs]
+          assert len(paths) == len(set(paths)), "duplicate image_path in output"
+          print(f"OK: {len(recs)} records, contract satisfied")
+          PY
+
+      - name: Upload smoke artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results-py${{ matrix.python-version }}
+          path: results_ci/
+          if-no-files-found: ignore

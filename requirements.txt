@@ -1,0 +1,21 @@
+# Core - everything the detector, evaluation and predict.py need.
+torch>=2.0
+numpy>=1.24
+pillow>=10.0
+scikit-learn>=1.3
+pandas>=2.0
+matplotlib>=3.7
+tqdm>=4.65
+pyyaml>=6.0
+tabulate>=0.9          # pandas .to_markdown() for the generated tables
+
+# Backbone. open_clip is the primary path; transformers is the fallback and is
+# also what Colab already has, so we pin neither hard.
+open_clip_torch>=2.24
+transformers>=4.38
+
+# Demo (optional at inference time - predict.py does not import it)
+gradio>=4.0
+
+# Dev / CI
+pytest>=7.4
