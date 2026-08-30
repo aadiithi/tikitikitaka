@@ -1,6 +1,6 @@
 # Datasets and derived artefacts are never committed - the repo must stay
 # clonable in seconds, and the raw data is redistributable only from its source.
-data/
+!data/
 features/
 checkpoints/*.pt
 !checkpoints/.gitkeep
@@ -26,3 +26,8 @@ venv/
 .DS_Store
 gradio_cached_examples/
 flagged/
+
+sid_export/
+demo_set/
+val2017/
+

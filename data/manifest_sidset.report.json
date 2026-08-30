@@ -1,0 +1,16 @@
+{
+  "n_images": 24000,
+  "manifest": "C:\\Users\\rithm\\OneDrive\\Documents\\tikitikitaka\\data\\manifest_sidset.csv",
+  "metadata_leak_probe": {
+    "n": 2000,
+    "auc": 0.9851365487391194,
+    "verdict": "severe",
+    "top_features": {
+      "num__width": -4.22,
+      "num__height": -3.805,
+      "num__aspect_ratio": -2.171,
+      "num__file_size_bytes": -1.65,
+      "cat__jpeg_quant_bucket_0": 0.0
+    }
+  }
+}
